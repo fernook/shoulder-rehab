@@ -49,8 +49,10 @@ function SessionRow({ s }: { s: Session }) {
                     </div>
                   ) : (
                     <div className="text-xs text-neutral-500">
+                      {e.level != null && `L${e.level} · `}
                       {e.setsCompleted}×{e.repsCompleted}
                       {e.load && ` · ${e.load}`}
+                      {e.aggravated && ' · aggravated'}
                       {e.notes && ` · ${e.notes}`}
                     </div>
                   )}

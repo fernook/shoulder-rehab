@@ -5,6 +5,7 @@ import History from './screens/History';
 import Progress from './screens/Progress';
 import Settings from './screens/Settings';
 import LogCheck from './screens/LogCheck';
+import ExerciseDetail from './screens/ExerciseDetail';
 
 function NavTab({ to, label }: { to: string; label: string }) {
   return (
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/history" element={<History />} />
           <Route path="/progress" element={<Progress />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/exercise/:id" element={<ExerciseDetail />} />
         </Routes>
       </main>
       <nav

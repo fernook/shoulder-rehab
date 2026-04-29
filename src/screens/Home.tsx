@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { db, getSettings } from '../lib/db';
+import { db, getSettings, updateSettings } from '../lib/db';
+import LevelsOnboarding from '../components/LevelsOnboarding';
 import { isoFromDate, todayISO, weekDates, formatRelative } from '../lib/date';
 import { currentPhase, phaseLabel, weekNumberFromStart } from '../lib/phase';
 import {
-  acceptProgression,
-  dismissProgression,
-  findEligibleProgressions,
+  acceptSuggestion,
+  dismissSuggestion,
+  findSuggestions,
+  type Suggestion,
 } from '../lib/progression';
 import ProgressionCard from '../components/ProgressionCard';
-import type { Exercise, FunctionalCheck, Session, Settings } from '../lib/types';
+import type { FunctionalCheck, Session, Settings } from '../lib/types';
 
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
@@ -17,7 +19,8 @@ export default function Home() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [lastCheck, setLastCheck] = useState<FunctionalCheck | null>(null);
-  const [eligible, setEligible] = useState<Exercise[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const reload = useCallback(async () => {
     const s = await getSettings();
@@ -27,7 +30,18 @@ export default function Home() {
     const checks = await db.checks.toArray();
     checks.sort((a, b) => b.createdAt - a.createdAt);
     setLastCheck(checks[0] ?? null);
-    setEligible(await findEligibleProgressions());
+    setSuggestions(await findSuggestions());
+
+    if (!s.levelsOnboardingSeen) {
+      const hasLegacy = all.some((sess) =>
+        sess.exercises.some((e) => e.level == null && !e.skipped)
+      );
+      if (hasLegacy) {
+        setShowOnboarding(true);
+      } else {
+        await updateSettings({ levelsOnboardingSeen: true });
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -48,21 +62,29 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
+      {showOnboarding && (
+        <LevelsOnboarding
+          onDone={() => {
+            setShowOnboarding(false);
+            reload();
+          }}
+        />
+      )}
       <header>
         <div className="text-sm text-neutral-500">
           {phaseLabel(phase)} phase · week {weekNum}
         </div>
       </header>
 
-      {eligible.length > 0 && (
+      {suggestions.length > 0 && (
         <ProgressionCard
-          exercise={eligible[0]}
+          suggestion={suggestions[0]}
           onAccept={async () => {
-            await acceptProgression(eligible[0].id);
+            await acceptSuggestion(suggestions[0]);
             await reload();
           }}
           onDismiss={async () => {
-            await dismissProgression(eligible[0].id);
+            await dismissSuggestion(suggestions[0]);
             await reload();
           }}
         />

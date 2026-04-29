@@ -7,20 +7,24 @@ export type ExerciseId =
 
 export type Category = 'activation' | 'integration';
 
+export type ExerciseLevel = {
+  level: number;
+  name: string;
+  description: string[];
+  cueText: string;
+  failureModes: string[];
+  defaultSets: number;
+  defaultReps: number | string;
+  graduationCriteria: string;
+};
+
 export type Exercise = {
   id: ExerciseId;
   name: string;
   category: Category;
-  defaultSets: number;
-  defaultReps: number | string;
-  cueText: string;
-  failureModes: string[];
-  progressionNotes: string;
   order: number;
-  setup: string;
-  execution: string[];
-  tempo?: string;
-  feelsLike?: string;
+  progressionNotes: string;
+  levels: ExerciseLevel[];
 };
 
 export type FormRating = 1 | 2 | 3 | 4 | 5;
@@ -28,6 +32,7 @@ export type Aggravation = 0 | 1 | 2 | 3 | 4 | 5;
 
 export type SessionExercise = {
   exerciseId: ExerciseId;
+  level?: number; // undefined = legacy / unspecified
   setsCompleted: number;
   repsCompleted: number;
   load?: string;
@@ -35,11 +40,12 @@ export type SessionExercise = {
   notes?: string;
   skipped?: boolean;
   skipReason?: string;
+  aggravated?: boolean;
 };
 
 export type Session = {
   id: string;
-  date: string; // ISO date YYYY-MM-DD
+  date: string;
   durationMinutes?: number;
   exercises: SessionExercise[];
   overallFeel: FormRating;
@@ -69,29 +75,25 @@ export type Phase = 'activation' | 'integration' | 'consolidation' | 'maintenanc
 
 export type Settings = {
   id: 'singleton';
-  startDate: string; // ISO date
+  startDate: string;
   weeklyTarget: number;
   phaseOverride?: Phase;
+  levelsOnboardingSeen?: boolean;
 };
 
 export type ProgressionEvent = {
   id: string;
   date: string;
   exerciseId: ExerciseId;
-  fromNotes: string;
+  kind: 'level-up' | 'level-down' | 'add-load';
+  fromLevel?: number;
+  toLevel?: number;
+  notes?: string;
   acceptedAt: number;
-};
-
-export type ProgressionPromptDismissal = {
-  exerciseId: ExerciseId;
-  dismissedAtSessionCount: number;
 };
 
 export type ExerciseProgressionState = {
   exerciseId: ExerciseId;
-  setsOverride?: number;
-  repsOverride?: number | string;
-  cueOverride?: string;
-  progressionStep: number; // increments each accepted progression
+  currentLevel?: number;
   lastPromptSessionId?: string;
 };

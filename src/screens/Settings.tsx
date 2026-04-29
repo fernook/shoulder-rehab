@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getSettings, updateSettings } from '../lib/db';
 import { phaseFromWeek, phaseLabel, weekNumberFromStart } from '../lib/phase';
 import {
@@ -9,7 +10,13 @@ import {
   resetAll,
 } from '../lib/backup';
 import { getTheme, setTheme as applySetTheme, type Theme } from '../lib/theme';
-import type { Phase, Settings as SettingsType } from '../lib/types';
+import {
+  getAllExercises,
+  getLevel,
+  resolveCurrentLevels,
+  maxLevel,
+} from '../lib/exercises';
+import type { ExerciseId, Phase, Settings as SettingsType } from '../lib/types';
 
 const PHASES: Phase[] = ['activation', 'integration', 'consolidation', 'maintenance'];
 
@@ -17,11 +24,13 @@ export default function Settings() {
   const [s, setS] = useState<SettingsType | null>(null);
   const [theme, setThemeState] = useState<Theme>('dark');
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [levels, setLevels] = useState<Map<ExerciseId, number>>(new Map());
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getSettings().then(setS);
     setThemeState(getTheme());
+    resolveCurrentLevels().then(setLevels);
   }, []);
 
   if (!s) return <div className="text-neutral-500">Loading…</div>;
@@ -128,6 +137,31 @@ export default function Settings() {
               Clear override
             </button>
           )}
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-medium text-neutral-400 px-1">Exercise levels</h2>
+        <div className="card divide-y divide-neutral-800">
+          {getAllExercises().map((ex) => {
+            const lvl = levels.get(ex.id) ?? 1;
+            const lvlObj = getLevel(ex, lvl);
+            return (
+              <Link
+                key={ex.id}
+                to={`/exercise/${ex.id}`}
+                className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+              >
+                <div className="min-w-0">
+                  <div className="font-medium">{ex.name}</div>
+                  <div className="truncate text-xs text-neutral-500">
+                    L{lvl} of {maxLevel(ex)} · {lvlObj.name}
+                  </div>
+                </div>
+                <span className="shrink-0 text-neutral-500">›</span>
+              </Link>
+            );
+          })}
         </div>
       </section>
 

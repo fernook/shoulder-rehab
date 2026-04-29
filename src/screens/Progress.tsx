@@ -121,6 +121,22 @@ export default function Progress() {
 
   const formTrend = useMemo(() => buildFormTrend(sessions), [sessions]);
 
+  const levelTrend = useMemo(() => {
+    const exercises = getAllExercises();
+    const sorted = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
+    type Row = Record<string, string | number | undefined> & { date: string };
+    return sorted.map((s) => {
+      const r: Row = { date: s.date.slice(5) };
+      for (const ex of exercises) {
+        const se = s.exercises.find(
+          (x) => x.exerciseId === ex.id && !x.skipped && x.level != null
+        );
+        if (se?.level != null) r[ex.id] = se.level;
+      }
+      return r;
+    });
+  }, [sessions]);
+
   const aggravationPoints = useMemo(() => {
     const sorted = [...checks].sort((a, b) => a.date.localeCompare(b.date));
     return sorted.map((c) => {
@@ -265,6 +281,58 @@ export default function Progress() {
                     strokeWidth={2}
                     dot={{ r: 3 }}
                   />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-medium text-neutral-400">
+          Level over time
+        </h2>
+        <div className="card">
+          {levelTrend.length === 0 || levelTrend.every((r) =>
+            getAllExercises().every((e) => r[e.id] == null)
+          ) ? (
+            <div className="py-6 text-center text-sm text-neutral-500">
+              Log a session to see level progression.
+            </div>
+          ) : (
+            <div style={{ width: '100%', height: 220 }}>
+              <ResponsiveContainer>
+                <LineChart data={levelTrend} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                  <CartesianGrid stroke="#262626" strokeDasharray="3 3" />
+                  <XAxis dataKey="date" stroke="#737373" fontSize={11} />
+                  <YAxis
+                    domain={[1, 5]}
+                    ticks={[1, 2, 3, 4, 5]}
+                    stroke="#737373"
+                    fontSize={11}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: '#171717',
+                      border: '1px solid #262626',
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {exercises.map((e) => (
+                    <Line
+                      key={e.id}
+                      type="stepAfter"
+                      dataKey={e.id}
+                      name={e.name}
+                      stroke={EXERCISE_COLORS[e.id]}
+                      strokeWidth={1.75}
+                      dot={{ r: 2 }}
+                      connectNulls
+                    />
+                  ))}
                 </LineChart>
               </ResponsiveContainer>
             </div>
