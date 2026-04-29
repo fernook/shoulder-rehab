@@ -17,6 +17,10 @@ export type Exercise = {
   failureModes: string[];
   progressionNotes: string;
   order: number;
+  setup: string;
+  execution: string[];
+  tempo?: string;
+  feelsLike?: string;
 };
 
 export type FormRating = 1 | 2 | 3 | 4 | 5;

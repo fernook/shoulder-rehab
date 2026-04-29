@@ -37,6 +37,7 @@ export default function SessionFlow() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [step, setStep] = useState(0);
+  const [showHowTo, setShowHowTo] = useState(false);
   const [showFailures, setShowFailures] = useState(false);
   const [overallFeel, setOverallFeel] = useState<FormRating | null>(null);
   const [sessionNotes, setSessionNotes] = useState('');
@@ -122,13 +123,60 @@ export default function SessionFlow() {
 
           <div className="card">
             <p className="text-neutral-200 leading-relaxed">{current.cueText}</p>
-            <button
-              type="button"
-              onClick={() => setShowFailures((v) => !v)}
-              className="mt-3 text-sm text-neutral-400 underline-offset-2 hover:underline"
-            >
-              {showFailures ? 'Hide' : 'Show'} failure modes
-            </button>
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+              <button
+                type="button"
+                onClick={() => setShowHowTo((v) => !v)}
+                className="text-sm text-neutral-300 underline-offset-2 hover:underline"
+              >
+                {showHowTo ? 'Hide' : 'How to do it'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowFailures((v) => !v)}
+                className="text-sm text-neutral-400 underline-offset-2 hover:underline"
+              >
+                {showFailures ? 'Hide' : 'Show'} failure modes
+              </button>
+            </div>
+
+            {showHowTo && (
+              <div className="mt-4 space-y-4 border-t border-neutral-800 pt-4 text-sm">
+                <div>
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    Setup
+                  </div>
+                  <p className="text-neutral-300 leading-relaxed">{current.setup}</p>
+                </div>
+                <div>
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    Steps
+                  </div>
+                  <ol className="list-decimal space-y-2 pl-5 text-neutral-300 leading-relaxed marker:text-neutral-500">
+                    {current.execution.map((step, i) => (
+                      <li key={i}>{step}</li>
+                    ))}
+                  </ol>
+                </div>
+                {current.tempo && (
+                  <div>
+                    <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                      Tempo
+                    </div>
+                    <p className="text-neutral-300 leading-relaxed">{current.tempo}</p>
+                  </div>
+                )}
+                {current.feelsLike && (
+                  <div>
+                    <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                      What it should feel like
+                    </div>
+                    <p className="text-neutral-300 leading-relaxed">{current.feelsLike}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {showFailures && (
               <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-neutral-400">
                 {current.failureModes.map((f) => (
@@ -223,6 +271,7 @@ export default function SessionFlow() {
             type="button"
             disabled={!stepValid}
             onClick={() => {
+              setShowHowTo(false);
               setShowFailures(false);
               setStep(step + 1);
             }}
