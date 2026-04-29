@@ -152,11 +152,11 @@ export default function SessionFlow() {
     }
   }
 
-  if (exercises.length === 0 || !current || !draft || !currentLevel) {
+  if (exercises.length === 0 || drafts.length === 0) {
     return <LoadingState source="SessionFlow" />;
   }
 
-  const max = maxLevel(current);
+  const max = current ? maxLevel(current) : 0;
 
   return (
     <div className="space-y-5">
@@ -173,7 +173,7 @@ export default function SessionFlow() {
         </div>
       </div>
 
-      {!onSummary && (
+      {!onSummary && current && draft && currentLevel && (
         <div className="space-y-5">
           <div>
             <div className="text-xs uppercase tracking-wider text-neutral-500">
