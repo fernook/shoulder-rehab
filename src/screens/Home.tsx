@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { db, getSettings, updateSettings } from '../lib/db';
 import LevelsOnboarding from '../components/LevelsOnboarding';
+import LoadingState from '../components/LoadingState';
 import { isoFromDate, todayISO, weekDates, formatRelative } from '../lib/date';
 import { currentPhase, phaseLabel, weekNumberFromStart } from '../lib/phase';
 import {
@@ -71,27 +72,7 @@ export default function Home() {
   }, [reload]);
 
   if (!settings) {
-    return (
-      <div className="space-y-4">
-        <div className="text-neutral-500">Loading…</div>
-        {loadError && (
-          <div className="card border border-red-700/60 text-sm">
-            <div className="font-semibold text-red-300">Couldn’t load</div>
-            <div className="mt-1 text-neutral-300">{loadError}</div>
-            <button
-              type="button"
-              className="btn btn-secondary mt-3"
-              onClick={() => reload()}
-            >
-              Retry
-            </button>
-          </div>
-        )}
-        <div className="text-center text-[11px] text-neutral-600 tabular-nums">
-          build {__BUILD_ID__} UTC
-        </div>
-      </div>
-    );
+    return <LoadingState source="Home" error={loadError} onRetry={reload} />;
   }
 
   const today = todayISO();

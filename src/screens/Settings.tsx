@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getSettings, updateSettings } from '../lib/db';
+import LoadingState from '../components/LoadingState';
 import { phaseFromWeek, phaseLabel, weekNumberFromStart } from '../lib/phase';
 import {
   Backup,
@@ -33,7 +34,7 @@ export default function Settings() {
     resolveCurrentLevels().then(setLevels);
   }, []);
 
-  if (!s) return <div className="text-neutral-500">Loading…</div>;
+  if (!s) return <LoadingState source="Settings" />;
 
   const autoPhase = phaseFromWeek(weekNumberFromStart(s.startDate));
   const effectivePhase = s.phaseOverride ?? autoPhase;

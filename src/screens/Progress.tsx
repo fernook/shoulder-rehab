@@ -13,6 +13,7 @@ import {
   YAxis,
 } from 'recharts';
 import { db, getSettings } from '../lib/db';
+import LoadingState from '../components/LoadingState';
 import { isoFromDate, startOfWeek, weeksBetween } from '../lib/date';
 import { TRIGGER_LABELS } from '../lib/checks';
 import { getAllExercises } from '../lib/exercises';
@@ -158,7 +159,7 @@ export default function Progress() {
     return groups;
   }, [aggravationPoints]);
 
-  if (!settings) return <div className="text-neutral-500">Loading…</div>;
+  if (!settings) return <LoadingState source="Progress" />;
 
   const phase = currentPhase(settings);
   const weekNum = weekNumberFromStart(settings.startDate);

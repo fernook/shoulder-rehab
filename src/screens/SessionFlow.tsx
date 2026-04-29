@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Rating from '../components/Rating';
 import NumberStepper from '../components/NumberStepper';
+import LoadingState from '../components/LoadingState';
 import {
   getAllExercises,
   getLevel,
@@ -152,7 +153,7 @@ export default function SessionFlow() {
   }
 
   if (exercises.length === 0 || !current || !draft || !currentLevel) {
-    return <div className="text-neutral-500">Loading…</div>;
+    return <LoadingState source="SessionFlow" />;
   }
 
   const max = maxLevel(current);
