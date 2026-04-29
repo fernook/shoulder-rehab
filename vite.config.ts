@@ -3,9 +3,17 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const BASE = '/shoulder-rehab/';
+const BUILD_ID = new Date()
+  .toISOString()
+  .replace('T', ' ')
+  .slice(0, 16)
+  .replace(/-/g, '.');
 
 export default defineConfig({
   base: BASE,
+  define: {
+    __BUILD_ID__: JSON.stringify(BUILD_ID),
+  },
   plugins: [
     react(),
     VitePWA({

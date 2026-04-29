@@ -225,7 +225,27 @@ export default function Settings() {
         >
           Reset all data
         </button>
+        <button
+          type="button"
+          onClick={async () => {
+            if (
+              !window.confirm(
+                'Delete the IndexedDB and reload the app? Use this if the app is stuck. This wipes all sessions, checks, and settings.'
+              )
+            )
+              return;
+            await indexedDB.deleteDatabase('rehab-db');
+            window.location.reload();
+          }}
+          className="w-full rounded-xl bg-neutral-800 py-3 text-sm text-neutral-300 active:bg-neutral-700"
+        >
+          Drop IndexedDB &amp; reload (recovery)
+        </button>
       </section>
+
+      <div className="pt-2 text-center text-[11px] text-neutral-600 tabular-nums">
+        build {__BUILD_ID__} UTC
+      </div>
     </div>
   );
 }

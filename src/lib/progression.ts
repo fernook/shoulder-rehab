@@ -2,10 +2,8 @@ import { db, uid } from './db';
 import { todayISO } from './date';
 import {
   getAllExercises,
-  getExercise,
   getLevel,
   maxLevel,
-  resolveCurrentLevel,
   setCurrentLevel,
 } from './exercises';
 import type {
@@ -16,9 +14,9 @@ import type {
   Session,
 } from './types';
 
-const LEVEL_UP_THRESHOLD = 3; // 3 sessions form 5/5 at current level
-const ADD_LOAD_THRESHOLD = 4; // 4 sessions form 5/5 at max level
-const AGGRAVATION_THRESHOLD = 2; // 2 consecutive aggravated sessions at current level
+const LEVEL_UP_THRESHOLD = 3;
+const ADD_LOAD_THRESHOLD = 4;
+const AGGRAVATION_THRESHOLD = 2;
 
 export type Suggestion =
   | { kind: 'level-up'; exercise: Exercise; fromLevel: number; toLevel: number }
@@ -32,12 +30,10 @@ type Appearance = {
   aggravated?: boolean;
 };
 
-async function appearancesForExercise(id: ExerciseId): Promise<{
-  all: Appearance[];
-  sessions: Session[];
-}> {
-  const sessions = await db.sessions.toArray();
-  sessions.sort((a, b) => a.createdAt - b.createdAt);
+function appearancesFromSessions(
+  sessions: Session[],
+  id: ExerciseId
+): Appearance[] {
   const out: Appearance[] = [];
   for (const s of sessions) {
     const se = s.exercises.find((x) => x.exerciseId === id && !x.skipped);
@@ -50,29 +46,42 @@ async function appearancesForExercise(id: ExerciseId): Promise<{
       });
     }
   }
-  return { all: out, sessions };
+  return out;
 }
 
-async function poolSinceLastPrompt(
+function resolveCurrentLevelFromCache(
   id: ExerciseId,
-  apps: Appearance[]
-): Promise<Appearance[]> {
-  const state = await db.progressionState.get(id);
-  if (!state?.lastPromptSessionId) return apps;
-  const idx = apps.findIndex((a) => a.sessionId === state.lastPromptSessionId);
-  return idx >= 0 ? apps.slice(idx + 1) : apps;
+  state: ExerciseProgressionState | undefined,
+  sessionsNewestFirst: Session[]
+): number {
+  if (state?.currentLevel != null) return state.currentLevel;
+  for (const s of sessionsNewestFirst) {
+    const se = s.exercises.find(
+      (x) => x.exerciseId === id && x.level != null
+    );
+    if (se?.level != null) return se.level;
+  }
+  return 1;
 }
 
-async function suggestionForExercise(ex: Exercise): Promise<Suggestion | null> {
-  const { all } = await appearancesForExercise(ex.id);
-  const currentLevel = await resolveCurrentLevel(ex.id);
-  const pool = await poolSinceLastPrompt(ex.id, all);
+function suggestionForExercise(
+  ex: Exercise,
+  apps: Appearance[],
+  currentLevel: number,
+  state: ExerciseProgressionState | undefined
+): Suggestion | null {
+  // Pool of appearances since the last prompt for this exercise
+  let pool = apps;
+  if (state?.lastPromptSessionId) {
+    const idx = apps.findIndex((a) => a.sessionId === state.lastPromptSessionId);
+    if (idx >= 0) pool = apps.slice(idx + 1);
+  }
   const atLevel = pool.filter((a) => a.level === currentLevel);
 
   // Aggravation drop-level suggestion takes priority
-  if (atLevel.length >= AGGRAVATION_THRESHOLD) {
+  if (atLevel.length >= AGGRAVATION_THRESHOLD && currentLevel > 1) {
     const tail = atLevel.slice(-AGGRAVATION_THRESHOLD);
-    if (tail.every((a) => a.aggravated === true) && currentLevel > 1) {
+    if (tail.every((a) => a.aggravated === true)) {
       return {
         kind: 'level-down',
         exercise: ex,
@@ -95,12 +104,10 @@ async function suggestionForExercise(ex: Exercise): Promise<Suggestion | null> {
         };
       }
     }
-  } else {
-    if (atLevel.length >= ADD_LOAD_THRESHOLD) {
-      const tail = atLevel.slice(-ADD_LOAD_THRESHOLD);
-      if (tail.every((a) => a.formRating === 5)) {
-        return { kind: 'add-load', exercise: ex, level: currentLevel };
-      }
+  } else if (atLevel.length >= ADD_LOAD_THRESHOLD) {
+    const tail = atLevel.slice(-ADD_LOAD_THRESHOLD);
+    if (tail.every((a) => a.formRating === 5)) {
+      return { kind: 'add-load', exercise: ex, level: currentLevel };
     }
   }
 
@@ -108,10 +115,23 @@ async function suggestionForExercise(ex: Exercise): Promise<Suggestion | null> {
 }
 
 export async function findSuggestions(): Promise<Suggestion[]> {
+  // Fetch all DB data ONCE up-front, then compute in memory.
+  // This matters on iOS Safari where chained IDB calls are slow.
+  const [sessions, states] = await Promise.all([
+    db.sessions.toArray(),
+    db.progressionState.toArray(),
+  ]);
+  const sortedAsc = [...sessions].sort((a, b) => a.createdAt - b.createdAt);
+  const sortedDesc = [...sessions].sort((a, b) => b.createdAt - a.createdAt);
+  const stateById = new Map(states.map((s) => [s.exerciseId, s]));
+
   const exercises = getAllExercises();
   const out: Suggestion[] = [];
   for (const ex of exercises) {
-    const s = await suggestionForExercise(ex);
+    const apps = appearancesFromSessions(sortedAsc, ex.id);
+    const state = stateById.get(ex.id);
+    const currentLevel = resolveCurrentLevelFromCache(ex.id, state, sortedDesc);
+    const s = suggestionForExercise(ex, apps, currentLevel, state);
     if (s) out.push(s);
   }
   return out;
@@ -124,9 +144,7 @@ async function latestSessionId(): Promise<string | undefined> {
 }
 
 async function recordPrompt(id: ExerciseId): Promise<void> {
-  const existing = (await db.progressionState.get(id)) ?? {
-    exerciseId: id,
-  };
+  const existing = (await db.progressionState.get(id)) ?? { exerciseId: id };
   const updated: ExerciseProgressionState = {
     ...existing,
     lastPromptSessionId: await latestSessionId(),
@@ -148,7 +166,6 @@ export async function acceptSuggestion(s: Suggestion): Promise<void> {
     };
     await db.progressionEvents.add(event);
   } else {
-    // add-load: no level change, but record the event so it doesn't re-prompt
     const event: ProgressionEvent = {
       id: uid(),
       date: todayISO(),
@@ -184,33 +201,5 @@ export function suggestionBody(s: Suggestion): string {
   if (s.kind === 'level-up') {
     return getLevel(ex, s.toLevel).graduationCriteria;
   }
-  if (s.kind === 'level-down') {
-    return ex.progressionNotes;
-  }
   return ex.progressionNotes;
 }
-
-// Back-compat exports for callers that still reference the old API names.
-// These wrap the new findSuggestions / accept / dismiss functions.
-export async function findEligibleProgressions(): Promise<Exercise[]> {
-  const ss = await findSuggestions();
-  return ss.map((s) => s.exercise);
-}
-
-export async function acceptProgression(id: ExerciseId): Promise<void> {
-  const ss = await findSuggestions();
-  const s = ss.find((x) => x.exercise.id === id);
-  if (s) await acceptSuggestion(s);
-}
-
-export async function dismissProgression(id: ExerciseId): Promise<void> {
-  const ss = await findSuggestions();
-  const s = ss.find((x) => x.exercise.id === id);
-  if (s) await dismissSuggestion(s);
-  else {
-    // Fall back to recording a prompt for this exercise even if no current suggestion
-    await recordPrompt(id);
-  }
-}
-
-void getExercise;

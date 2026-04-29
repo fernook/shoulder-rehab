@@ -87,6 +87,9 @@ export default function Home() {
             </button>
           </div>
         )}
+        <div className="text-center text-[11px] text-neutral-600 tabular-nums">
+          build {__BUILD_ID__} UTC
+        </div>
       </div>
     );
   }
@@ -200,6 +203,10 @@ export default function Home() {
           </span>
         </div>
       </section>
+
+      <div className="pt-2 text-center text-[11px] text-neutral-600 tabular-nums">
+        build {__BUILD_ID__} UTC
+      </div>
     </div>
   );
 }
