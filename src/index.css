@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  html, body, #root {
+    height: 100%;
+  }
+  body {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: none;
+  }
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-xl px-5 py-3 font-medium transition-colors active:scale-[0.98];
+  }
+  .btn-primary {
+    @apply bg-neutral-100 text-neutral-900 active:bg-neutral-200;
+  }
+  .btn-secondary {
+    @apply bg-neutral-800 text-neutral-100 active:bg-neutral-700;
+  }
+  .btn-ghost {
+    @apply text-neutral-300 active:bg-neutral-900;
+  }
+  .card {
+    @apply rounded-2xl bg-neutral-900 p-4;
+  }
+  .input {
+    @apply w-full rounded-xl bg-neutral-800 px-4 py-3 text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-600;
+  }
+  .label {
+    @apply block text-sm font-medium text-neutral-400 mb-1;
+  }
+}
+
+html.light {
+  color-scheme: light;
+}
+html.light body {
+  @apply bg-neutral-50 text-neutral-900;
+}
+html.light .card {
+  @apply bg-white shadow-sm;
+}
+html.light .btn-primary {
+  @apply bg-neutral-900 text-neutral-50;
+}
+html.light .btn-secondary {
+  @apply bg-neutral-200 text-neutral-900;
+}
+html.light .input {
+  @apply bg-white border border-neutral-200 text-neutral-900;
+}
+html.light .label {
+  @apply text-neutral-600;
+}
