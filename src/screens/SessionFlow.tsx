@@ -55,6 +55,7 @@ export default function SessionFlow() {
   const [sessionNotes, setSessionNotes] = useState('');
   const [startTime] = useState(() => Date.now());
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -110,32 +111,44 @@ export default function SessionFlow() {
   async function save() {
     if (overallFeel == null) return;
     setSaving(true);
-    const sessionExercises: SessionExercise[] = drafts.map((d, i) => ({
-      exerciseId: exercises[i].id,
-      level: d.level,
-      setsCompleted: d.skipped ? 0 : d.setsCompleted,
-      repsCompleted: d.skipped ? 0 : d.repsCompleted,
-      load: d.load.trim() || undefined,
-      formRating: (d.formRating ?? 3) as FormRating,
-      notes: d.notes.trim() || undefined,
-      skipped: d.skipped || undefined,
-      skipReason: d.skipped ? d.skipReason.trim() : undefined,
-      aggravated: d.aggravated ?? undefined,
-    }));
-    // Persist current level per exercise for next session default
-    for (const d of drafts) {
-      if (!d.skipped) {
-        await setCurrentLevel(exercises[drafts.indexOf(d)].id, d.level);
+    setSaveError(null);
+    try {
+      const sessionExercises: SessionExercise[] = drafts.map((d, i) => ({
+        exerciseId: exercises[i].id,
+        level: d.level,
+        setsCompleted: d.skipped ? 0 : d.setsCompleted,
+        repsCompleted: d.skipped ? 0 : d.repsCompleted,
+        load: d.load.trim() || undefined,
+        formRating: (d.formRating ?? 3) as FormRating,
+        notes: d.notes.trim() || undefined,
+        skipped: d.skipped || undefined,
+        skipReason: d.skipped ? d.skipReason.trim() : undefined,
+        aggravated: d.aggravated ?? undefined,
+      }));
+      const elapsedMin = Math.max(1, Math.round((Date.now() - startTime) / 60000));
+      // Save the session FIRST — that's the main user action. Level persistence
+      // is a convenience and shouldn't block navigation if it fails.
+      await createSession({
+        exercises: sessionExercises,
+        overallFeel,
+        notes: sessionNotes.trim() || undefined,
+        durationMinutes: elapsedMin,
+      });
+      for (let i = 0; i < drafts.length; i++) {
+        const d = drafts[i];
+        if (d.skipped) continue;
+        try {
+          await setCurrentLevel(exercises[i].id, d.level);
+        } catch (err) {
+          console.error('setCurrentLevel failed', exercises[i].id, err);
+        }
       }
+      nav('/', { replace: true });
+    } catch (err) {
+      console.error('save failed', err);
+      setSaveError(`Save failed: ${(err as Error).message ?? err}`);
+      setSaving(false);
     }
-    const elapsedMin = Math.max(1, Math.round((Date.now() - startTime) / 60000));
-    await createSession({
-      exercises: sessionExercises,
-      overallFeel,
-      notes: sessionNotes.trim() || undefined,
-      durationMinutes: elapsedMin,
-    });
-    nav('/', { replace: true });
   }
 
   if (exercises.length === 0 || !current || !draft || !currentLevel) {
@@ -423,6 +436,14 @@ export default function SessionFlow() {
           >
             {saving ? 'Saving…' : 'Save session'}
           </button>
+          {saveError && (
+            <div className="card border border-red-700/60 text-sm">
+              <div className="font-semibold text-red-300">{saveError}</div>
+              <div className="mt-1 text-neutral-400">
+                Try again, or copy this and let me know.
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

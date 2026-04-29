@@ -21,26 +21,48 @@ export default function Home() {
   const [lastCheck, setLastCheck] = useState<FunctionalCheck | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const s = await getSettings();
-    setSettings(s);
-    const all = await db.sessions.toArray();
-    setSessions(all);
-    const checks = await db.checks.toArray();
-    checks.sort((a, b) => b.createdAt - a.createdAt);
-    setLastCheck(checks[0] ?? null);
-    setSuggestions(await findSuggestions());
+    setLoadError(null);
+    let s: Settings | null = null;
+    try {
+      s = await getSettings();
+      setSettings(s);
+    } catch (err) {
+      setLoadError(`Settings load failed: ${(err as Error).message ?? err}`);
+      return;
+    }
 
-    if (!s.levelsOnboardingSeen) {
-      const hasLegacy = all.some((sess) =>
-        sess.exercises.some((e) => e.level == null && !e.skipped)
-      );
-      if (hasLegacy) {
-        setShowOnboarding(true);
-      } else {
-        await updateSettings({ levelsOnboardingSeen: true });
+    try {
+      const all = await db.sessions.toArray();
+      setSessions(all);
+      if (s && !s.levelsOnboardingSeen) {
+        const hasLegacy = all.some((sess) =>
+          sess.exercises.some((e) => e.level == null && !e.skipped)
+        );
+        if (hasLegacy) {
+          setShowOnboarding(true);
+        } else {
+          await updateSettings({ levelsOnboardingSeen: true });
+        }
       }
+    } catch (err) {
+      console.error('sessions/onboarding load failed', err);
+    }
+
+    try {
+      const checks = await db.checks.toArray();
+      checks.sort((a, b) => b.createdAt - a.createdAt);
+      setLastCheck(checks[0] ?? null);
+    } catch (err) {
+      console.error('checks load failed', err);
+    }
+
+    try {
+      setSuggestions(await findSuggestions());
+    } catch (err) {
+      console.error('findSuggestions failed', err);
     }
   }, []);
 
@@ -48,7 +70,26 @@ export default function Home() {
     reload();
   }, [reload]);
 
-  if (!settings) return <div className="text-neutral-500">Loading…</div>;
+  if (!settings) {
+    return (
+      <div className="space-y-4">
+        <div className="text-neutral-500">Loading…</div>
+        {loadError && (
+          <div className="card border border-red-700/60 text-sm">
+            <div className="font-semibold text-red-300">Couldn’t load</div>
+            <div className="mt-1 text-neutral-300">{loadError}</div>
+            <button
+              type="button"
+              className="btn btn-secondary mt-3"
+              onClick={() => reload()}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const today = todayISO();
   const sessionDates = new Set(sessions.map((s) => s.date));
